@@ -5,16 +5,18 @@
 #include <arpa/inet.h>
 
 #define PORT 8080
-#define MAX 1024
+#define BUFFER_SIZE 1024
 
 int main()
 {
-    int sockfd;
-    char buffer[MAX];
+    int sockfd, n;
+    char buffer[BUFFER_SIZE];
+    char message[] = "TIME";
 
-    struct sockaddr_in serverAddr;
-    socklen_t serverLen = sizeof(serverAddr);
+    struct sockaddr_in server_addr;
+    socklen_t server_len = sizeof(server_addr);
 
+    // Create UDP socket
     sockfd = socket(AF_INET, SOCK_DGRAM, 0);
 
     if (sockfd < 0) {
@@ -22,39 +24,35 @@ int main()
         exit(EXIT_FAILURE);
     }
 
-    memset(&serverAddr, 0, sizeof(serverAddr));
+    // Initialize server address
+    memset(&server_addr, 0, sizeof(server_addr));
 
-    serverAddr.sin_family = AF_INET;
-    serverAddr.sin_port = htons(PORT);
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-    // Server is running on the same machine
-    serverAddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    // Send time request to server
+    sendto(sockfd,
+           message,
+           strlen(message),
+           0,
+           (struct sockaddr *)&server_addr,
+           sizeof(server_addr));
 
-    printf("Enter a new-generation English sentence:\n");
-    fgets(buffer, MAX, stdin);
+    printf("Time request sent to server.\n");
 
-    // Remove newline added by fgets()
-    buffer[strcspn(buffer, "\n")] = '\0';
-
-    sendto(sockfd, buffer, strlen(buffer) + 1, 0,
-           (const struct sockaddr *)&serverAddr,
-           sizeof(serverAddr));
-
-    printf("\nSentence sent to server.\n");
-
-    int n = recvfrom(sockfd, buffer, MAX - 1, 0,
-                     (struct sockaddr *)&serverAddr,
-                     &serverLen);
-
-    if (n < 0) {
-        perror("Receive failed");
-        close(sockfd);
-        exit(EXIT_FAILURE);
-    }
+    // Receive time from server
+    n = recvfrom(sockfd,
+                 buffer,
+                 BUFFER_SIZE - 1,
+                 0,
+                 (struct sockaddr *)&server_addr,
+                 &server_len);
 
     buffer[n] = '\0';
 
-    printf("Formal English: %s\n", buffer);
+    // Display received time
+    printf("Server time: %s", buffer);
 
     close(sockfd);
 
